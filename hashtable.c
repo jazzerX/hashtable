@@ -6,13 +6,13 @@ hastable_t *ht_create(int size)
 	if (ht != NULL)
 	{
 		ht->size = size;
-		ht->store = (hash_list_t **) malloc(size * sizeof(hash_list_t *));
+		ht->store = (list_t **) malloc(size * sizeof(list_t *));
 
 		if (ht->store != NULL)
 		{
 			for (int i = 0; i < ht->size; i++)
 			{
-				ht->store[i] = (hash_list_t *) malloc(sizeof(hash_list_t));
+				ht->store[i] = (list_t *) malloc(sizeof(list_t));
 				ht->store[i]->key = NULL;
 				ht->store[i]->value = NULL;
 				ht->store[i]->next = NULL;
@@ -25,7 +25,7 @@ hastable_t *ht_create(int size)
 	return NULL;
 }
 
-static void ht_list_delete(hash_list_t *head)
+static void ht_list_clear(list_t *head)
 {
 	while (head->next != NULL)
 	{
@@ -40,7 +40,7 @@ static void ht_list_delete(hash_list_t *head)
 	head = NULL;
 }
 
-int ht_delete(hastable_t *ht)
+int ht_clear(hastable_t *ht)
 {
 	if (ht->store != NULL)
 	{
@@ -50,7 +50,7 @@ int ht_delete(hastable_t *ht)
 			ht->store[i]->value = NULL;
 
 			if (ht->store[i]->next != NULL)
-				ht_list_delete(ht->store[i]);
+				ht_list_clear(ht->store[i]);
 			else
 				ht->store[i]->next = NULL;
 
@@ -82,12 +82,25 @@ static int ht_get_hash(const char *s, int size)
 	return hash % size;
 }
 
-static int ht_insert_in_list(hash_list_t *head, char *key, char *value)
+static int ht_insert_in_list(list_t *head, char *key, char *value)
 {
-	while (head->next != NULL)
+	while (head->next != NULL) 
+	{
 		head = head->next;
+		if (head->key == key)
+		{
+			head->value = value;
+			return 0;	
+		}
+	}
 
-	head->next = (hash_list_t *) malloc(sizeof(hash_list_t));
+	if (head->key == key)
+	{
+		head->value = value;
+		return 0;	
+	}
+
+	head->next = (list_t *) malloc(sizeof(list_t));
 
 	if (head->next != NULL)
 	{
@@ -110,19 +123,21 @@ int ht_insert(hastable_t *ht, char *key, char *value)
 		ht->store[idx]->key = key;
 		ht->store[idx]->value = value;
 		ht->store[idx]->next = NULL;
+
+		return 0;
 	}
 	else
-		if (ht_insert_in_list(ht->store[idx], key, value) != -1)
-			return 0;
-		return -1;
+		return ht_insert_in_list(ht->store[idx], key, value);
 }
 
-static char *ht_find_in_list(hash_list_t *head, char *key)
+static char *ht_find_in_list(list_t *head, char *key)
 {
 	while (head->next != NULL)
+	{
+		head = head->next;	
 		if (head->key == key)
-			return head->key;
-		head = head->next;
+			return head->key;	
+	}
 
 	return NULL;
 }
@@ -138,7 +153,42 @@ char *ht_find(hastable_t *ht, char *key)
 
 }
 
-static void ht_list_bypass(hash_list_t *head)
+static int ht_delete_in_list(list_t *head, char *key)
+{
+	while (head->next != NULL)
+	{
+		head = head->next;	
+		if (head->key == key)
+		{
+			head->key = NULL;
+			head->value = NULL;
+			head->next = NULL;
+
+			return 0;
+		}	
+	}
+
+	return -1;
+}
+
+int ht_delete(hastable_t *ht, char *key)
+{
+	int idx = ht_get_hash(key, ht->size);
+
+	if (ht->store[idx]->key == key)
+	{
+		ht->store[idx]->key = NULL;
+		ht->store[idx]->value = NULL;
+		ht->store[idx]->next = NULL;
+
+		return 0;		
+	}
+	else
+		return ht_delete_in_list(ht->store[idx], key);
+
+}
+
+static void ht_list_bypass(list_t *head)
 {
 	while (head->next != NULL) 
 	{
